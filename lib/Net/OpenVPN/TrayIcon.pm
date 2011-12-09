@@ -6,10 +6,12 @@ use Moo;
 use Gtk2 '-init';
 use Gtk2::TrayIcon;
 use MIME::Base64;
+use Time::HiRes 'usleep';
 use Data::Section -setup;
 
 has icons    => ( is => 'rw' );
 has config   => ( is => 'rw' );
+has dispatch => ( is => 'rw' );
 has gtk_icon => ( is => 'rw' );
 has gtk_menu => ( is => 'rw' );
 has gtk_tray_icon => ( is => 'rw' );
@@ -41,6 +43,7 @@ sub BUILD {
     }
 
     $self->_build_config;
+    $self->_build_dispatch_table;
     $self->_build_icons;
     $self->_build_tray;
 
@@ -100,16 +103,19 @@ sub menu {
     $gtk_menu_start->signal_connect(
         activate => sub {
             system 'sudo ' . $self->config->{start_cmnd};
-            if ($self->_vpn_is_running(5)){
-                $self->gtk_icon->set_from_pixbuf($self->icons->{'active'});
-                $self->gtk_tooltip->set_tip( $self->gtk_tray_icon, 'OpenVPN started.');
+            if ($self->_vpn_is_running(200)){
+                if ($self->_check_if_connected(10000)){
+                    $self->dispatch->{set_icon}->($self, 'active');
+                    $self->dispatch->{set_tip}->($self, 'OpenVPN connected');
+                }
+                else {
+                    $self->dispatch->{set_icon}->($self, 'default');
+                    $self->dispatch->{set_tip}->($self, 'OpenVPN connect timed out.');
+                }
             }
             else {
-                $self->gtk_icon->set_from_pixbuf($self->icons->{'inactive'});
-                $self->gtk_tooltip->set_tip(
-                    $self->gtk_tray_icon,
-                    'OpenVPN start failed. See your logs for more information.'
-                );
+                $self->dispatch->{set_icon}->($self, 'inactive');
+                $self->dispatch->{set_tip}->($self, 'OpenVPN start failed. See your logs for more information.');
             }
         },
     );
@@ -118,19 +124,13 @@ sub menu {
     $gtk_menu_stop->signal_connect(
         activate => sub {
             system 'sudo ' . $self->config->{stop_cmnd};
-            if ($self->_vpn_is_running(2)){
-                $self->gtk_icon->set_from_pixbuf($self->icons->{'active'});
-                $self->gtk_tooltip->set_tip(
-                    $self->gtk_tray_icon,
-                    'OpenVPN failed to stop. See your logs for more information.'
-                );
+            if ($self->_vpn_is_not_running(200)){
+                $self->dispatch->{set_icon}->($self, 'inactive');
+                    $self->dispatch->{set_tip}->($self, 'OpenVPN stopped');
             }
             else {
-                $self->gtk_icon->set_from_pixbuf($self->icons->{'inactive'});
-                $self->gtk_tooltip->set_tip(
-                    $self->gtk_tray_icon,
-                    'OpenVPN stopped'
-                );
+                $self->dispatch->{set_icon}->($self, 'active');
+                $self->dispatch->{set_tip}->($self, 'OpenVPN failed to stop. See your logs for more information.');
             }
         },
     );
@@ -145,22 +145,45 @@ sub menu {
     return 1;
 }
 
+sub _build_dispatch_table {
+    my ($self) = @_;
+
+    my %table = (
+        set_icon => sub {
+            my ($self, $type) = @_;
+            $self->gtk_icon->set_from_pixbuf($self->icons->{$type});
+            return 1;
+        },
+        set_tip => sub {
+            my ($self, $tip) = @_;
+            $self->gtk_tooltip->set_tip( $self->gtk_tray_icon, $tip);
+            return 1;
+        },
+
+    );
+
+    $self->dispatch({ %table });
+
+    return 1;
+}
+
 sub _build_tray {
     my ($self) = @_;
 
+    my $gtk_tooltip = Gtk2::Tooltips->new;
+    my $gtk_trayicon = Gtk2::TrayIcon->new('VPN Tray');
     my $gtk_icon;
-    if ($self->_vpn_is_running(2)){
+    if ($self->_vpn_is_running(10)){
         $gtk_icon = Gtk2::Image->new_from_pixbuf($self->icons->{'active'});
+        $gtk_tooltip->set_tip( $gtk_trayicon, 'OpenVPN started');
     }
     else {
         $gtk_icon = Gtk2::Image->new_from_pixbuf($self->icons->{'inactive'});
+        $gtk_tooltip->set_tip( $gtk_trayicon, 'OpenVPN stopped');
     }
     my $gtk_eventbox = Gtk2::EventBox->new;
     $gtk_eventbox->add($gtk_icon);
-    my $gtk_trayicon = Gtk2::TrayIcon->new('VPN Tray');
 
-    my $gtk_tooltip = Gtk2::Tooltips->new;
-    $gtk_tooltip->set_tip( $gtk_trayicon, 'Start and stop OpenVPN');
 
     $gtk_trayicon->add($gtk_eventbox);
 
@@ -181,13 +204,46 @@ sub _build_tray {
 
 sub _vpn_is_running {
     my ($self, $timeout) = @_;
+    return $self->_check_if_running(1, $timeout);
+}
+
+sub _vpn_is_not_running {
+    my ($self, $timeout) = @_;
+    return $self->_check_if_running(0, $timeout);
+}
+
+sub _check_if_running {
+    my ($self, $condition, $timeout) = @_;
 
     while ($timeout){
         my $ovpn_pid = qx[pgrep openvpn];
-        if ($ovpn_pid){
-            return 1;
+        if ($condition){
+            if ($ovpn_pid){
+                return 1;
+            }
         }
-        sleep 1;
+        else {
+            if (!$ovpn_pid){
+                return 1;
+            }
+        }
+        Time::HiRes::usleep 100;
+        $timeout--;
+    }
+
+    return 0;
+}
+
+sub _check_if_connected { # check if tunnel_interface appears in routes
+    my ($self, $timeout) = @_;
+
+    my $tunnel = $self->config->{tunnel_interface};
+    while ($timeout){
+        my ($routes) = qx[/sbin/ip r]; # first line -> default route
+
+        return 1 if $routes ~~ /default\svia\s\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3}\sdev\s$tunnel/;
+
+        Time::HiRes::usleep 100;
         $timeout--;
     }
 
@@ -223,20 +279,20 @@ sub _build_icons {
     my %icons;
     $icons{'default'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file},
-        20, # width
-        20, # height
+        16, # width
+        16, # height
         1,  # keep aspect
     );
     $icons{'active'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file_active},
-        20, # width
-        20, # height
+        16, # width
+        16, # height
         1,  # keep aspect
     );
     $icons{'inactive'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file_inactive},
-        20, # width
-        20, # height
+        16, # width
+        16, # height
         1,  # keep aspect
     );
 
@@ -251,6 +307,7 @@ __DATA__
 __[default_config]__
 start_cmnd:/etc/init.d/openvpn.vpn.over9000.de start
 stop_cmnd:/etc/init.d/openvpn.vpn.over9000.de stop
+tunnel_interface:tun0
 icon_file:icon_default.png
 icon_file_active:icon_active.png
 icon_file_inactive:icon_inactive.png
