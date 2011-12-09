@@ -5,10 +5,7 @@ use warnings;
 use Net::OpenVPN::TrayIcon;
 use Proc::Daemon;
 
-my $trayicon->new;
-
-Proc::Daemon::Init;
-
+my $trayicon = Net::OpenVPN::TrayIcon->new;
 $trayicon->run;
 
 exit 0;
