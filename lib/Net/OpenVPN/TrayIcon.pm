@@ -353,8 +353,8 @@ sub _build_icons {
 
 __DATA__
 __[default_config]__
-start_cmnd:/etc/init.d/openvpn.vpn.over9000.de start
-stop_cmnd:/etc/init.d/openvpn.vpn.over9000.de stop
+start_cmnd:/etc/init.d/openvpn start
+stop_cmnd:/etc/init.d/openvpn stop
 tunnel_interface:tun0
 icon_file:icon_default.png
 icon_file_active:icon_active.png
