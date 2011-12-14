@@ -279,20 +279,20 @@ sub _build_icons {
     my %icons;
     $icons{'default'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file},
-        16, # width
-        16, # height
+        $self->config->{icon_size}, # width
+        $self->config->{icon_size}, # height
         1,  # keep aspect
     );
     $icons{'active'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file_active},
-        16, # width
-        16, # height
+        $self->config->{icon_size}, # width
+        $self->config->{icon_size}, # height
         1,  # keep aspect
     );
     $icons{'inactive'} = Gtk2::Gdk::Pixbuf->new_from_file_at_scale(
         $ENV{HOME} . '/.ovpntray/' . $self->config->{icon_file_inactive},
-        16, # width
-        16, # height
+        $self->config->{icon_size}, # width
+        $self->config->{icon_size}, # height
         1,  # keep aspect
     );
 
@@ -311,6 +311,7 @@ tunnel_interface:tun0
 icon_file:icon_default.png
 icon_file_active:icon_active.png
 icon_file_inactive:icon_inactive.png
+icon_size:20
 __[icon_default]__
 iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAAlwSFlzAAAOxAA
 ADsQBlSsOGwAADjVJREFUeNrVW3uUVdV5//32uc95w/BOAYfhYWWZrmhoIQmr4qOJBopWl21jW6KJtR
