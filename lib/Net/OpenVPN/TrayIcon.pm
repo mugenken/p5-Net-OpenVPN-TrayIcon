@@ -8,6 +8,7 @@ use Gtk2::TrayIcon;
 use MIME::Base64;
 use Time::HiRes 'usleep';
 use Data::Section -setup;
+use POSIX ':sys_wait_h';
 
 has icons    => ( is => 'rw' );
 has config   => ( is => 'rw' );
@@ -16,6 +17,20 @@ has gtk_icon => ( is => 'rw' );
 has gtk_menu => ( is => 'rw' );
 has gtk_tray_icon => ( is => 'rw' );
 has gtk_tooltip => ( is => 'rw' );
+
+our $this;
+
+sub _sig_usr1_handler {
+    my ($sig) = @_;
+    $this->dispatch->{set_icon}->('active') if $sig ~~ 'USR1';
+    return 1;
+}
+
+sub _sig_usr2_handler {
+    my ($sig) = @_;
+    $this->dispatch->{set_icon}->('inactive') if $sig ~~ 'USR2';
+    return 1;
+}
 
 sub BUILD {
     my ($self) = @_;
@@ -46,6 +61,17 @@ sub BUILD {
     $self->_build_dispatch_table;
     $self->_build_icons;
     $self->_build_tray;
+    $self->_build_this;
+
+    $SIG{USR1} = \&_sig_usr1_handler;
+    $SIG{USR2} = \&_sig_usr2_handler;
+
+    return 1;
+}
+
+sub _build_this {
+    my ($self) = @_;
+    $this = $self;
 
     return 1;
 }
@@ -103,20 +129,9 @@ sub menu {
     $gtk_menu_start->signal_connect(
         activate => sub {
             system 'sudo ' . $self->config->{start_cmnd};
-            if ($self->_vpn_is_running(200)){
-                if ($self->_check_if_connected(10000)){
-                    $self->dispatch->{set_icon}->($self, 'active');
-                    $self->dispatch->{set_tip}->($self, 'OpenVPN connected');
-                }
-                else {
-                    $self->dispatch->{set_icon}->($self, 'default');
-                    $self->dispatch->{set_tip}->($self, 'OpenVPN connect timed out.');
-                }
-            }
-            else {
-                $self->dispatch->{set_icon}->($self, 'inactive');
-                $self->dispatch->{set_tip}->($self, 'OpenVPN start failed. See your logs for more information.');
-            }
+            $self->dispatch->{set_icon}->('default');
+            $self->dispatch->{set_tip}->('OpenVPN checking connection..');
+            $self->dispatch->{active_if_running}->();
         },
     );
 
@@ -124,14 +139,9 @@ sub menu {
     $gtk_menu_stop->signal_connect(
         activate => sub {
             system 'sudo ' . $self->config->{stop_cmnd};
-            if ($self->_vpn_is_not_running(200)){
-                $self->dispatch->{set_icon}->($self, 'inactive');
-                    $self->dispatch->{set_tip}->($self, 'OpenVPN stopped');
-            }
-            else {
-                $self->dispatch->{set_icon}->($self, 'active');
-                $self->dispatch->{set_tip}->($self, 'OpenVPN failed to stop. See your logs for more information.');
-            }
+            $self->dispatch->{set_icon}->('default');
+            $self->dispatch->{set_tip}->('OpenVPN checking connection..');
+            $self->dispatch->{inactive_if_not_running}->();
         },
     );
 
@@ -150,14 +160,52 @@ sub _build_dispatch_table {
 
     my %table = (
         set_icon => sub {
-            my ($self, $type) = @_;
+            my ($type) = @_;
             $self->gtk_icon->set_from_pixbuf($self->icons->{$type});
             return 1;
         },
         set_tip => sub {
-            my ($self, $tip) = @_;
+            my ($tip) = @_;
             $self->gtk_tooltip->set_tip( $self->gtk_tray_icon, $tip);
             return 1;
+        },
+        active_if_running => sub {
+            my $parent_pid = $$;
+            my $child_pid = fork;
+
+            if ($child_pid == 0){ # the child
+                if ($self->_vpn_is_running(200)){
+                    if ($self->_check_if_connected(10000)){
+                        kill USR1 => $parent_pid;
+                    }
+                }
+                else {
+                    kill USR2 => $parent_pid;
+                }
+
+                POSIX::_exit(0);
+            }
+            else {
+                # keep going
+            }
+        },
+        inactive_if_not_running => sub {
+            my $parent_pid = $$;
+            my $child_pid = fork;
+
+            if ($child_pid == 0){ # the child
+                if ($self->_vpn_is_not_running(200)){
+                    kill USR2 => $parent_pid;
+                }
+                else {
+                    kill USR1 => $parent_pid;
+                }
+
+                POSIX::_exit(0);
+            }
+            else {
+                # keep going
+            }
         },
 
     );
