@@ -29,7 +29,9 @@ my $build = Module::Build->new(
         'Module::Build' => 0.38
     },
     requires       => {
-        'Proc::Daemon'      => 0,
+        'POSIX'             => 0,
+        'Time::HiRes'       => 0,
+        'Data::Section'     => 0,
         'Moo'               => 0,
         'MIME::Base64'      => 0,
         'Gtk2'              => 0,

@@ -550,3 +550,79 @@ qPpvIJb6qGp0JWPe8z/TRAIBvNKBWyEFJocpRsf0eeKc1c0zIFSKRWYm4PDJu+/ZsOWPIXvvP0eJq2r
 wEy0D2kiMAGSxRSOBtTiHPkURHJ9yaPvaqAsWPsDxsbj88YMXLUNMcxMRWAkMUi8ifodFKSpANjNhhI
 Q7GB/N9z534+b96N2d7ksddjQOd18thh3XfohN25syCJSivXvvSuu83Hyc//AbPwiaznsSvDAAAAAEl
 FTkSuQmCC
+__END__
+=head1 NAME
+
+Net::OpenVPN::TrayIcon - A simple GTK2 tray icon to start and stop OpenVPN
+
+=head1 WARNING
+
+This is an unstable development release not ready for production!
+
+=head1 VERSION
+
+Version 0.02
+
+=head1 SYNOPSIS
+
+Net::OpenVPN::TrayIcon is a simple GTK2 tray icon that can be configured via
+config file.
+
+Run ovpntray.pl to get a tray icon. When first run it will create the config
+directory in $HOME/.ovpntray including the default icons and a default
+config file.
+
+You will most likely have to edit it and set the start and stop commands.
+Make sure you have the permission to run those commands.
+
+=head1 ATTRIBUTES/CONSTRUCTION
+
+Net::OpenVPN::TrayIcon currently has no configurable attributes.
+
+=head2 Contruction
+
+    my $trayicon = Net::OpenVPN::TrayIcon->new;
+
+This builds everything needed to run. The config, the dispatch table, the
+tray icon object with menu, icon and tooltip.
+
+=head1 METHODS
+
+=head2 run
+
+    $trayicon->run;
+
+This is just a Gtk2->main; that starts the Gtk main loop.
+
+=head1 AUTHOR
+
+Mugen Kenichi, C<< <mugen.kenichi at uninets.eu> >>
+
+=head1 BUGS
+
+Report bugs at:
+
+=over 2
+
+=item * Net::OpenVPN::TrayIcon issue tracker
+
+L<https://github.com/mugenken/p5-Net-OpenVPN-TrayIcon/issues>
+
+=item * support at uninets.eu
+
+C<< <mugen.kenichi at uninets.eu> >>
+
+=back
+
+=head1 SUPPORT
+
+=over 2
+
+=item * Technical support
+
+C<< <mugen.kenichi at uninets.eu> >>
+
+=back
+
+=cut
+
