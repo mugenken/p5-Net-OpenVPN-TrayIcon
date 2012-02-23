@@ -4,11 +4,18 @@ use warnings;
 use Module::Build;
 use lib 'lib';
 use Net::OpenVPN::TrayIcon::Version;
+use Getopt::Long qw(:config pass_through);
 
 my @script_files = grep { -f and ! -d } glob 'script/*';
 my $v = Net::OpenVPN::TrayIcon::Version->new;
+
 my $install = 0;
 my $dist    = 0;
+
+GetOptions(
+    'install' => \$install,
+    'dist'    => \$dist,
+);
 
 my $build = Module::Build->new(
     module_name         => 'Net::OpenVPN::TrayIcon',
@@ -36,6 +43,7 @@ my $build = Module::Build->new(
         'MIME::Base64'      => 0,
         'Gtk2'              => 0,
         'Gtk2::TrayIcon'    => 0,
+        'Proc::Daemon'      => 0,
     },
     provides => {
         'Net::OpenVPN::TrayIcon'          => 0,
@@ -63,8 +71,6 @@ my $build = Module::Build->new(
         },
     },
 );
-
-$build->add_build_element('tt');
 
 if ($dist) {
     $build->dispatch('build');

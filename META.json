@@ -37,6 +37,7 @@
             "MIME::Base64" : 0,
             "Moo" : 0,
             "POSIX" : 0,
+            "Proc::Daemon" : 0,
             "Time::HiRes" : 0
          }
       }
@@ -44,11 +45,11 @@
    "provides" : {
       "Net::OpenVPN::TrayIcon" : {
          "file" : "lib/Net/OpenVPN/TrayIcon.pm",
-         "version" : "v0.2.1"
+         "version" : "v0.2.2"
       },
       "Net::OpenVPN::TrayIcon::Version" : {
          "file" : "lib/Net/OpenVPN/TrayIcon/Version.pm",
-         "version" : "v0.2.1"
+         "version" : "v0.2.2"
       }
    },
    "release_status" : "stable",
@@ -57,5 +58,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.02.01"
+   "version" : "0.02.02"
 }
